@@ -22,6 +22,7 @@ magnetS = 20
 wallT = 1.6
 baseT = magnetH + wallT
 
+fanBoltD = queryabolt.boltData(fanBolt)["diameter"]
 fanNutH = queryabolt.nutData(fanBolt)["thickness"]
 fanNutW = queryabolt.nutData(fanBolt)["width"]
 fanNutWallH = fanNutH + wallT
@@ -35,8 +36,9 @@ fanT = 10
 fanTFit = fanT + fit + fanBoltHeadT
 fanMountW = 24
 fanCount = 2
+fanFit = looseFit
 
-w = fanCount * (fanW + fit) + 2 * wallT
+w = fanCount * (fanW + fanFit) + 2 * wallT
 l = fanTFit + fanMountT
 
 def fanMount():
@@ -45,29 +47,32 @@ def fanMount():
     plate.faces(">Z").workplane().tag("top")
     plate.faces("<Z").workplane().tag("bottom")
 
-    plate = plate.faces(">Y").workplane(centerOption="CenterOfBoundBox").rarray(magnetS, 1, math.floor(w / magnetS), 1).hole(magnetD, magnetH)
+    plate = plate.faces(">Y").workplane(centerOption="CenterOfBoundBox").rarray(magnetS, 1, math.floor(w / magnetS), 1).hole(magnetD + pressFit, magnetH + fit)
 
-    plate = plate.workplaneFromTagged("top").move(0, -l / 2 + fanMountT / 2).rect(w, fanMountT).extrude(fanNutWallD)
+    fanMountOffset = fanBoltD + looseFit + (fanH - fanMountW) / 2
+    fanMountH = fanMountOffset + max(0, (fanNutWallD - fanMountOffset) / 2)
+    plate = plate.workplaneFromTagged("top").move(0, -l / 2 + fanMountT / 2).rect(w, fanMountT).extrude(fanMountH)
+
     plate.faces("<Y").workplane().tag("fanNuts").end()
 
     def fanOffset(f):
-        return -w / 2 + (fanW - fanMountW) / 2 + f * (fanW + fit) + wallT
+        return -w / 2 + (fanW - fanMountW) / 2 + f * (fanW + fanFit) + wallT + fanFit / 2
 
-    plate = plate.faces(">Y").workplane().center(0,fanNutWallD / 2)
+    plate = plate.workplaneFromTagged("fanNuts").center(0,fanMountOffset / 2)
     for fan in range(0, fanCount):
         plate = plate.pushPoints([(fanOffset(fan), 0), (fanOffset(fan) + fanMountW, 0)]).boltHole(fanBolt)
 
-    plate = plate.workplaneFromTagged("fanNuts").center(0, fanNutWallD / 2)
+    plate = plate.workplaneFromTagged("fanNuts").center(0, fanMountOffset / 2)
     for fan in range(0, fanCount):
         plate = plate.pushPoints([(fanOffset(fan), 0), (fanOffset(fan) + fanMountW, 0)]).nutcatchParallel(fanBolt)
 
     # Fan airflow cutouts
     plate = plate.faces(">Z").workplane(centerOption="CenterOfBoundBox").tag("fanMount")
     for fan in range(0, fanCount):
-        plate = plate.workplaneFromTagged("fanMount").move(fanOffset(fan) + fanMountW / 2, 0).rect(fanMountW - fanNutW - 2 * wallT, fanMountT).extrude(-fanNutWallD / 2, combine='cut')
+        plate = plate.workplaneFromTagged("fanMount").move(fanOffset(fan) + fanMountW / 2, 0).rect(fanMountW - fanNutW - 2 * wallT, fanMountT).extrude(-fanMountH / 2, combine='cut')
 
     # Bottom magnet holes
-    plate = plate.workplaneFromTagged("bottom").center(0, l / 2 - magnetD / 2 - wallT).rarray(magnetS, 1, math.floor(w / magnetS), 1).hole(magnetD, magnetH)
+    plate = plate.workplaneFromTagged("bottom").center(0, l / 2 - magnetD / 2 - wallT).rarray(magnetS, 1, math.floor(w / magnetS), 1).hole(magnetD + pressFit, magnetH + fit)
 
     # Chamfers
     # In my case, these are art rather than exact science.
@@ -78,7 +83,6 @@ def fanMount():
     plate = (plate.faces(">Z").edges("|Y").fillet(c * 2))
     plate = plate.edges("(>>X or <<X) and (>Z or <Z[1] or <Z[2])").chamfer(c)
     plate = plate.faces("<Z").chamfer(c / 2)
-    plate = plate.edges("<Y and |Z and (>>X or <<X)").chamfer(c / 2)
     plate = (plate.faces(">Z[2]").edges("|Y or |X").chamfer(c / 2))
     return plate
 
@@ -87,7 +91,7 @@ def basketBottom():
     slotHS = 1.25 * slot
     slotVS = 0.75 * slot
 
-    h = baseT + fanH + wallT
+    h = baseT + fanH + 2 * looseFit + wallT
     basketW = w + 2 * wallT
     basketL = fanT + 2 * wallT
 
@@ -96,11 +100,10 @@ def basketBottom():
     basket.faces("<Y").workplane(centerOption="CenterOfBoundBox").tag("fanMate").end()
 
     # Fan magnet holes
-    basket = basket.workplaneFromTagged("fanMate").center(0, -fanH / 2).rarray(magnetS, 1, math.floor(w / magnetS), 1).hole(magnetD, magnetH)
+    basket = basket.workplaneFromTagged("fanMate").center(0, -(h - baseT) / 2).rarray(magnetS, 1, math.floor(w / magnetS), 1).hole(magnetD + pressFit, magnetH + fit)
 
     # Fan airflow cover
-    coverT = wallT - fit
-    basket = basket.workplaneFromTagged("fanMate").center(0, h / 2 - fanH / 2 - wallT).rarray(basketW  - coverT, 1, 2, 1).rect(wallT - fit, fanH).extrude(fanTFit)
+    basket = basket.workplaneFromTagged("fanMate").center(0, baseT / 2 - wallT / 2).rarray(basketW  - wallT, 1, 2, 1).rect(wallT, fanH + wallT).extrude(fanTFit)
     basket = basket.workplaneFromTagged("fanMate").center(0, h / 2 - wallT / 2).rect(basketW, wallT).extrude(fanTFit)
 
     # Bottom magnet holes
@@ -112,9 +115,10 @@ def basketBottom():
     # Chamfer the ventilation slots
     basket = basket.faces(">Y").edges("%Circle").chamfer(slot / 10)
     basket = basket.faces("<Y[1]").edges("%Circle").chamfer(slot / 10)
-    basket = basket.faces(">Y[1]").edges("%Circle").chamfer(slot / 10)
+    basket = basket.faces(">Y[1]").edges("%Circle").edges(cq.selectors.RadiusNthSelector(0)).chamfer(slot / 10)
     basket = basket.faces(">Y[2]").edges("%Circle").chamfer(slot / 10)
 
+    # Chamfer other stuff
     basket = basket.faces("<Z").chamfer(c / 2)
     basket = basket.faces(">Z").chamfer(c / 2)
     basket = (basket.faces(">Z[1]").edges("<Y").chamfer(fanTFit / 2))
@@ -124,4 +128,4 @@ def basketBottom():
     return basket
 
 show_object(fanMount(), name="fanMount")
-# show_object(basketBottom().val().translate((0, l * 1.5, 0)), name="basketBottom")
+show_object(basketBottom().val().translate((0, l * 1.25, 0)), name="basketBottom")

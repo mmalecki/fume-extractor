@@ -1,25 +1,26 @@
 import math
 import cq_queryabolt as queryabolt
 import cadquery as cq
+from settings import Settings
 
 class Workplane(queryabolt.WorkplaneMixin, cq.Workplane):
     pass
 
-pressFit = 0.05
-fit = 0.1
-looseFit = 0.5
+pressFit = Settings.pressFit
+fit = Settings.fit
+looseFit = Settings.looseFit
 
 # Chamfer
 c = 1
 f = 5
 
-fanBolt = "M2.5"
+fanBolt = Settings.fanBolt
 
-magnetD = 5
-magnetH = 5
+magnetD = Settings.magnetDiameter
+magnetH = Settings.magnetHeight
 magnetS = 20
 
-wallT = 1.6
+wallT = Settings.wallThickness
 baseT = magnetH + wallT
 
 fanBoltD = queryabolt.boltData(fanBolt)["diameter"]
@@ -30,12 +31,13 @@ fanNutWallD = fanNutW + 2*wallT
 fanMountT = 1.5 * fanNutWallH
 fanBoltHeadT = queryabolt.boltData(fanBolt, kind="socket_head")["head_length"]
 
-fanW = 30
-fanH = 30
-fanT = 10
+fanW = Settings.fanWidth
+fanH = Settings.fanHeight
+fanT = Settings.fanThickness
+fanMountW = Settings.fanMountWidth
+fanCount = Settings.fanCount
+
 fanTFit = fanT + fit + fanBoltHeadT
-fanMountW = 24
-fanCount = 2
 fanFit = looseFit
 
 w = fanCount * (fanW + fanFit) + 2 * wallT

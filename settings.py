@@ -14,3 +14,4 @@ class Settings:
 
     magnetDiameter = 5
     magnetHeight = 5
+    magnetSpacing = 20

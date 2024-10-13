@@ -18,7 +18,7 @@ fanBolt = Settings.fanBolt
 
 magnetD = Settings.magnetDiameter
 magnetH = Settings.magnetHeight
-magnetS = 20
+magnetS = Settings.magnetSpacing
 
 wallT = Settings.wallThickness
 baseT = magnetH + wallT
